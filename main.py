@@ -12,14 +12,21 @@ sys.path.insert(0, 'libs/')
 # TODO - Change another name to Appliocation class
 # because this must be a node of list, and not an application
 
+class Node(object):
+  """docstring for Node"""
+
+  def __init__(self):
+    self.value = None
+    self.sequence = None
+    self.age = None
+    super(Node, self).__init__()
+
+
 class Application(object):
   """ Application Class """
 
   def __init__(self):
     self.method = None
-    self.value = None
-    self.sequence = None
-    self.age = None
     self.file = None
     self.filename = 'binary'
     self.SIZE_OF_FILE = 11
@@ -35,12 +42,6 @@ class Application(object):
     elif operation != 'e':
       return
 
-  # UNUSED
-  def get_entries(self):
-    self.value = raw_input()
-    self.sequence = raw_input()
-    self.age = raw_input()
-
   def mod(self, n):
     return n % self.SIZE_OF_FILE
   
@@ -54,17 +55,21 @@ class Application(object):
     self.file.seek(index)
 
   def insert_record(self):
-    self.value = raw_input()
-    self.sequence = raw_input()
-    self.age = raw_input()
+    value = raw_input()
+    sequence = raw_input()
+    age = raw_input()
+    n = Node()
+    n.value = value
+    n.sequence = sequence
+    n.age = age
 
     if self.file:
-      self.point_to_value(self.value)
+      self.point_to_value(n.value)
       if self.file.read(): # ie, if has colision
-        print 'chave ja existente: %s' % self.value
+        print 'chave ja existente: %s' % n.value
         self.solve_colision()
       else:
-        self.file.write(str(self.value))
+        self.file.write(str(n.value))
 
   def query(self):
     value = raw_input()
@@ -80,8 +85,6 @@ class Application(object):
   def close_file(self):
     if self.file:
       self.file.close()
-
-
 
 app = Application()
 app.main()
