@@ -5,7 +5,6 @@
 # Author: @marciovicente
 # Email: marciovicente.filho@gmail.com
 
-
 import sys, struct, os, pickle
 sys.path.insert(0, 'libs/')
 
@@ -40,15 +39,13 @@ class Application(object):
     obj_size = sys.getsizeof(dumpped)
     self.open_file()
     self.file.seek(self.SIZE_OF_FILE * obj_size)
+    # INIT THE 'R' FLAG
+    self.file.seek(0)
+    self.file.write(pickle.dumps(self.SIZE_OF_FILE))
     self.close_file()
 
   def create_file(self):
     self.file = file(self.filename, 'w+b')
-    # self.open_file()
-    # self.file.seek(0)
-    # THE FLAG WILL POIN TO LAST REGISTER POSSIBLE IN FILE
-    # self.file.write('%s' % self.SIZE_OF_FILE)
-    # self.close_file()
 
   def main(self):
     self.method = raw_input()
@@ -64,15 +61,31 @@ class Application(object):
       elif operation == 'c':
         self.query()
       elif operation == 'r':
-        self.remove()
+        # self.remove()
+        self.print_flag()
       operation = raw_input()
     return
 
   def mod(self, n):
     return n % self.SIZE_OF_FILE
 
-  def solve_colision(self):
-    pass
+  def solve_colision(self, old_obj, new_obj):
+    if self.file.closed:
+      self.open_file()
+    if self.method == 'l':
+      r_flag_index = self.get_flag_index()
+      old_obj.index = r_flag_index
+      # pointer to old object value
+      self.point_to_value(old_obj.value)
+      # override the old object with the new index
+      self.file.write(pickle.dumps(old_obj))
+      # save the new instance in r flag
+      self.point_to_value(r_flag_index)
+      self.file.write(pickle.dumps(new_obj))
+      self.update_flag()
+      self.close_file()
+    else:
+      pass
 
   def point_to_value(self, value):
     """ This method point to index in a file """
@@ -80,12 +93,11 @@ class Application(object):
     value = int(value)
     index = self.mod(value)
     length = 211 if index > 1 else 1 # TODO - Change 211 to global dynamic variable
-    self.file.seek(index * length) # + len(str(self.SIZE_OF_FILE))
+    self.file.seek(index * length + len(pickle.dumps(self.SIZE_OF_FILE)))
 
   def insert_record(self):
     # if os.path.getsize(self.filename) >= self.SIZE_OF_FILE:
     #   print 'Arquivo cheio'
-
     value = raw_input()
     label = raw_input()
     age = raw_input()
@@ -102,17 +114,22 @@ class Application(object):
       except Exception:
         pass
       if obj: # ie, if has colision
-        print 'chave ja existente: %s' % n.value
-        self.solve_colision()
+        if n.value == obj.value:
+          print 'chave ja existente: %s' % n.value
+        else:
+          self.solve_colision(old_obj=obj, new_obj=n)
       else:
         self.point_to_value(n.value)
         self.file.write(pickle.dumps(n))
+        self.update_flag()
       self.close_file()
 
-  def query(self):
+  def query(self, value=None, query_value=None):
     self.open_file()
     obj = None
-    value = raw_input()
+    # import pdb; pdb.set_trace()
+    if not value:
+      value = raw_input()
     self.point_to_value(value)
 
     # TODO, Implements when the position doesn't exist
@@ -121,10 +138,17 @@ class Application(object):
     except Exception:
       print u'chave não encontrada: %s' % value
 
-    if obj:
+    # only if it's not called recursive
+    if obj and (int(obj.value) is int(value) and not query_value or int(query_value or -1) is int(obj.value)):
       print 'chave: %s' % obj.value
       print obj.label
       print obj.age
+      return
+
+    if obj.index: # if was colision
+      self.point_to_value(obj.index)
+      self.query(value=obj.index, query_value=value if not query_value else query_value)
+
     self.close_file()
 
   def remove(self):
@@ -137,6 +161,39 @@ class Application(object):
   def close_file(self):
     if self.file:
       self.file.close()
+
+  def update_flag(self):
+    if self.file.closed:
+      self.open_file()
+
+    self.file.seek(0)
+    for i in reversed(range(self.SIZE_OF_FILE)):
+      self.point_to_value(i)
+      try:
+        # if exists a record, bypass
+        obj = pickle.loads(self.file.read())
+      except Exception:
+        # if pickle generate a error == doesn't have record
+        # then I'll save in flag the new free position in file
+        self.file.seek(0)
+        self.file.write(pickle.dumps(i))
+        return
+
+  def get_flag_index(self):
+    if self.file.closed:
+      self.open_file()
+    self.file.seek(0)
+    index = pickle.loads(self.file.read())
+    return index
+
+  # ###############################
+  # ########## TEMPORARY ##########
+  # ###############################
+  def print_flag(self):
+    self.open_file()
+    self.file.seek(0)
+    print pickle.loads(self.file.read())
+    self.close_file()
 
 app = Application()
 app.main()
