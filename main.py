@@ -76,8 +76,9 @@ class Application(object):
       r_flag_index = self.get_flag_index()
       old_obj.index = r_flag_index
       # pointer to old object value
+      # import pdb; pdb.set_trace()
       self.point_to_value(old_obj.value)
-      # override the old object with the new index
+      # overwrite the old object with the new index
       self.file.write(pickle.dumps(old_obj))
       # save the new instance in r flag
       self.point_to_value(r_flag_index)
@@ -127,7 +128,6 @@ class Application(object):
   def query(self, value=None, query_value=None):
     self.open_file()
     obj = None
-    # import pdb; pdb.set_trace()
     if not value:
       value = raw_input()
     self.point_to_value(value)
@@ -137,19 +137,23 @@ class Application(object):
       obj = pickle.loads(self.file.read())
     except Exception:
       print u'chave não encontrada: %s' % value
+      return False
 
     # only if it's not called recursive
+    # import pdb; pdb.set_trace()
     if obj and (int(obj.value) is int(value) and not query_value or int(query_value or -1) is int(obj.value)):
       print 'chave: %s' % obj.value
       print obj.label
       print obj.age
-      return
+      return True
 
-    if obj.index: # if was colision
+    if obj and obj.index: # if was colision
       self.point_to_value(obj.index)
-      self.query(value=obj.index, query_value=value if not query_value else query_value)
+      if self.query(value=obj.index, query_value=value if not query_value else query_value):
+        return True
 
     self.close_file()
+    print u'chave não encontrada: %s' % value
 
   def remove(self):
     value = raw_input()
