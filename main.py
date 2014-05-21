@@ -77,50 +77,44 @@ class Application(object):
   def mod(self, n):
     return n % self.SIZE_OF_FILE
 
-  def print_second(self):
-    if self.file.closed:
-      self.open_file()
-    self.point_to_value(2)
-    try:
-      # ATENTION: NO 24 ELE NAO CONSEGUE RECUPERAR
-      # OU SEJA, N ESTA INSERINDO NOS LOCAIS CORRETOS
-      obj_next = pickle.loads(self.file.read())
-    except Exception:
-      pass
-    print 'Printando a segunda posicao: %s' % obj_next.__dict__
+  def insert_in_lisch(self, old_obj, new_obj, rec):
+    obj_next = None
+    if old_obj.index: # if they has a next
+      self.point_to_value(old_obj.index)
+      # get the object in position:obj.index
+      try:
+        obj_next = pickle.loads(self.file.read())
+      except Exception:
+        pass
+
+      # call solve colision recursive to the obj_next
+      if self.solve_colision(old_obj=obj_next, new_obj=new_obj, rec=True):
+        return False
+    else:
+      r_flag_index = self.get_flag_index()
+      old_obj.index = r_flag_index
+      # pointer to old object value
+      self.point_to_value(old_obj.value, rec=rec)
+      # overwrite the old object with the new index
+      self.file.write(pickle.dumps(old_obj))
+      # save the new instance in r flag
+      self.point_to_value(r_flag_index)
+      self.file.write(pickle.dumps(new_obj))
+      self.update_flag()
+      self.close_file()
+      return True
 
   def solve_colision(self, old_obj, new_obj, rec=None):
+    if new_obj.value is old_obj.value:
+      print 'chave ja existente: %s' % new_obj.value
+      return False
+
     if self.file.closed:
       self.open_file()
     if self.method == 'l':
-
-      obj_next = None
-      if old_obj.index: # if they has a next
-        self.point_to_value(old_obj.index)
-        # get the object in position:obj.index
-        try:
-          obj_next = pickle.loads(self.file.read())
-        except Exception:
-          pass
-
-        # call solve colision recursive to the obj_next
-        if self.solve_colision(old_obj=obj_next, new_obj=new_obj, rec=True):
-          return False
-      else:
-        r_flag_index = self.get_flag_index()
-        old_obj.index = r_flag_index
-        # pointer to old object value
-        self.point_to_value(old_obj.value, rec=rec)
-        # overwrite the old object with the new index
-        self.file.write(pickle.dumps(old_obj))
-        # save the new instance in r flag
-        self.point_to_value(r_flag_index)
-        self.file.write(pickle.dumps(new_obj))
-        self.update_flag()
-        self.close_file()
-        return True
+      self.insert_in_lisch(old_obj, new_obj, rec)
     else:
-      pass
+      self.insert_in_eisch(old_obj, new_obj, rec)
 
   def point_to_value(self, value, rec=None):
     """ This method point to index in a file """
