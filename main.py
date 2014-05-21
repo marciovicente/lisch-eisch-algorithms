@@ -30,15 +30,12 @@ class Application(object):
     self.file = None
     self.filename = 'lisch.dat'
     self.SIZE_OF_FILE = 11
+    self.STRUCT_SIZE = 0
     super(Application, self).__init__()
 
   def init_file(self):
-    n = Node()
-    n.value = n.label = n.age = n.index = ''
-    dumpped = pickle.dumps(n)
-    obj_size = sys.getsizeof(dumpped)
     self.open_file()
-    self.file.seek(self.SIZE_OF_FILE * obj_size)
+    self.file.seek(self.SIZE_OF_FILE * self.STRUCT_SIZE)
     # INIT THE 'R' FLAG
     self.file.seek(0)
     self.file.write(pickle.dumps(self.SIZE_OF_FILE))
@@ -47,12 +44,21 @@ class Application(object):
   def create_file(self):
     self.file = file(self.filename, 'w+b')
 
+  def set_struct_size(self):
+    n = Node()
+    n.value = n.age = n.index = -1
+    n.label = ''
+    dumpped = pickle.dumps(n)
+    self.STRUCT_SIZE = sys.getsizeof(dumpped)
+
   def main(self):
     self.method = raw_input()
     self.filename = 'lisch.dat' if self.method == 'l' else 'eisch.dat'
     if not os.path.exists(self.filename):
       self.create_file()
       self.init_file()
+
+    self.set_struct_size()
 
     operation = raw_input()
     while operation != 'e':
@@ -76,7 +82,6 @@ class Application(object):
       r_flag_index = self.get_flag_index()
       old_obj.index = r_flag_index
       # pointer to old object value
-      # import pdb; pdb.set_trace()
       self.point_to_value(old_obj.value)
       # overwrite the old object with the new index
       self.file.write(pickle.dumps(old_obj))
@@ -90,15 +95,15 @@ class Application(object):
 
   def point_to_value(self, value):
     """ This method point to index in a file """
+
     self.file.seek(0)
     value = int(value)
     index = self.mod(value)
-    length = 211 if index > 1 else 1 # TODO - Change 211 to global dynamic variable
-    self.file.seek(index * length + len(pickle.dumps(self.SIZE_OF_FILE)))
+    self.file.seek(index * self.STRUCT_SIZE + len(pickle.dumps(self.SIZE_OF_FILE)))
 
   def insert_record(self):
-    # if os.path.getsize(self.filename) >= self.SIZE_OF_FILE:
-    #   print 'Arquivo cheio'
+    # os.path.getsize(self.filename) -> 'full archive'
+
     value = raw_input()
     label = raw_input()
     age = raw_input()
@@ -132,7 +137,6 @@ class Application(object):
       value = raw_input()
     self.point_to_value(value)
 
-    # TODO, Implements when the position doesn't exist
     try:
       obj = pickle.loads(self.file.read())
     except Exception:
@@ -140,7 +144,6 @@ class Application(object):
       return False
 
     # only if it's not called recursive
-    # import pdb; pdb.set_trace()
     if obj and (int(obj.value) is int(value) and not query_value or int(query_value or -1) is int(obj.value)):
       print 'chave: %s' % obj.value
       print obj.label
