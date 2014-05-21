@@ -38,7 +38,7 @@ class Application(object):
     self.file.seek(self.SIZE_OF_FILE * self.STRUCT_SIZE)
     # INIT THE 'R' FLAG
     self.file.seek(0)
-    self.file.write(pickle.dumps(self.SIZE_OF_FILE))
+    self.file.write(pickle.dumps(self.SIZE_OF_FILE-1))
     self.close_file()
 
   def create_file(self):
@@ -69,27 +69,57 @@ class Application(object):
       elif operation == 'r':
         # self.remove()
         self.print_flag()
+      elif operation == 'p':
+        self.print_file()
       operation = raw_input()
     return
 
   def mod(self, n):
     return n % self.SIZE_OF_FILE
 
+  def print_second(self):
+    if self.file.closed:
+      self.open_file()
+    self.point_to_value(2)
+    try:
+      # ATENTION: NO 24 ELE NAO CONSEGUE RECUPERAR
+      # OU SEJA, N ESTA INSERINDO NOS LOCAIS CORRETOS
+      obj_next = pickle.loads(self.file.read())
+    except Exception:
+      pass
+    print 'Printando a segunda posicao: %s' % obj_next.__dict__
+
   def solve_colision(self, old_obj, new_obj):
     if self.file.closed:
       self.open_file()
     if self.method == 'l':
-      r_flag_index = self.get_flag_index()
-      old_obj.index = r_flag_index
-      # pointer to old object value
-      self.point_to_value(old_obj.value)
-      # overwrite the old object with the new index
-      self.file.write(pickle.dumps(old_obj))
-      # save the new instance in r flag
-      self.point_to_value(r_flag_index)
-      self.file.write(pickle.dumps(new_obj))
-      self.update_flag()
-      self.close_file()
+
+      # import pdb; pdb.set_trace()
+      obj_next = None
+      if old_obj.index: # if they has a next
+        self.point_to_value(old_obj.index)
+        # get the object in position:obj.index
+        try:
+          obj_next = pickle.loads(self.file.read())
+        except Exception:
+          pass
+
+        # call solve colision recursive to the obj_next
+        if self.solve_colision(old_obj=obj_next, new_obj=new_obj):
+          return False
+      else:
+        r_flag_index = self.get_flag_index()
+        old_obj.index = r_flag_index
+        # pointer to old object value
+        self.point_to_value(old_obj.value)
+        # overwrite the old object with the new index
+        self.file.write(pickle.dumps(old_obj))
+        # save the new instance in r flag
+        self.point_to_value(r_flag_index)
+        self.file.write(pickle.dumps(new_obj))
+        self.update_flag()
+        self.close_file()
+        return True
     else:
       pass
 
@@ -108,27 +138,27 @@ class Application(object):
     label = raw_input()
     age = raw_input()
     n = Node()
-    n.value = value
+    n.value = int(value)
     n.label = label
-    n.age = age
+    n.age = int(age)
     self.open_file()
-    if self.file:
-      self.point_to_value(n.value)
-      obj = None
-      try:
-        obj = pickle.loads(self.file.read())
-      except Exception:
-        pass
-      if obj: # ie, if has colision
-        if n.value == obj.value:
-          print 'chave ja existente: %s' % n.value
-        else:
-          self.solve_colision(old_obj=obj, new_obj=n)
+
+    self.point_to_value(n.value)
+    obj = None
+    try:
+      obj = pickle.loads(self.file.read())
+    except Exception:
+      pass
+    if obj: # ie, if has colision
+      if n.value == obj.value:
+        print 'chave ja existente: %s' % n.value
       else:
-        self.point_to_value(n.value)
-        self.file.write(pickle.dumps(n))
-        self.update_flag()
-      self.close_file()
+        self.solve_colision(old_obj=obj, new_obj=n)
+    else:
+      self.point_to_value(n.value)
+      self.file.write(pickle.dumps(n))
+
+    self.close_file()
 
   def query(self, value=None, query_value=None):
     self.open_file()
@@ -144,19 +174,18 @@ class Application(object):
       return False
 
     # only if it's not called recursive
-    if obj and (int(obj.value) is int(value) and not query_value or int(query_value or -1) is int(obj.value)):
+    if obj and (obj.value is int(value) and not query_value or int(query_value or -1) is obj.value):
       print 'chave: %s' % obj.value
       print obj.label
       print obj.age
       return True
 
-    if obj and obj.index: # if was colision
+    if obj and obj.index: # if has colision
       self.point_to_value(obj.index)
       if self.query(value=obj.index, query_value=value if not query_value else query_value):
         return True
 
     self.close_file()
-    print u'chave não encontrada: %s' % value
 
   def remove(self):
     value = raw_input()
@@ -192,6 +221,17 @@ class Application(object):
     self.file.seek(0)
     index = pickle.loads(self.file.read())
     return index
+
+  def print_file(self):
+    self.open_file()
+    for i in range(self.SIZE_OF_FILE):
+      self.point_to_value(i)
+      try:
+        obj = pickle.loads(self.file.read())
+        print '%s: %s %s %s %s' % (i, obj.value, obj.label, obj.age, obj.index if obj.index else 'nulo')
+      except Exception:
+        print '%s: vazio' % i
+    self.close_file()
 
   # ###############################
   # ########## TEMPORARY ##########
