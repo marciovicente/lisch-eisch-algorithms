@@ -89,12 +89,11 @@ class Application(object):
       pass
     print 'Printando a segunda posicao: %s' % obj_next.__dict__
 
-  def solve_colision(self, old_obj, new_obj):
+  def solve_colision(self, old_obj, new_obj, rec=None):
     if self.file.closed:
       self.open_file()
     if self.method == 'l':
 
-      # import pdb; pdb.set_trace()
       obj_next = None
       if old_obj.index: # if they has a next
         self.point_to_value(old_obj.index)
@@ -105,13 +104,13 @@ class Application(object):
           pass
 
         # call solve colision recursive to the obj_next
-        if self.solve_colision(old_obj=obj_next, new_obj=new_obj):
+        if self.solve_colision(old_obj=obj_next, new_obj=new_obj, rec=True):
           return False
       else:
         r_flag_index = self.get_flag_index()
         old_obj.index = r_flag_index
         # pointer to old object value
-        self.point_to_value(old_obj.value)
+        self.point_to_value(old_obj.value, rec=rec)
         # overwrite the old object with the new index
         self.file.write(pickle.dumps(old_obj))
         # save the new instance in r flag
@@ -123,13 +122,22 @@ class Application(object):
     else:
       pass
 
-  def point_to_value(self, value):
+  def point_to_value(self, value, rec=None):
     """ This method point to index in a file """
 
     self.file.seek(0)
     value = int(value)
     index = self.mod(value)
     self.file.seek(index * self.STRUCT_SIZE + len(pickle.dumps(self.SIZE_OF_FILE)))
+
+    if rec:
+      obj = None
+      try:
+        obj = pickle.loads(self.file.read())
+      except:
+        self.file.seek(index * self.STRUCT_SIZE + len(pickle.dumps(self.SIZE_OF_FILE)))
+      if obj and obj.index and (value is not obj.value):
+        self.point_to_value(obj.index)
 
   def insert_record(self):
     # os.path.getsize(self.filename) -> 'full archive'
