@@ -12,7 +12,7 @@ sys.path.insert(0, 'libs/')
 # because this must be a node of list, and not an application
 
 class Node(object):
-  """docstring for Node"""
+  """ Object class (Node) """
 
   def __init__(self):
     self.value = None
@@ -47,7 +47,7 @@ class Application(object):
   def set_struct_size(self):
     n = Node()
     n.value = n.age = n.index = -1
-    n.label = ''
+    n.label = 'abcdefghijklmnopqrst'
     dumpped = pickle.dumps(n)
     self.STRUCT_SIZE = sys.getsizeof(dumpped)
 
@@ -77,7 +77,7 @@ class Application(object):
   def mod(self, n):
     return n % self.SIZE_OF_FILE
 
-  def insert_in_lisch(self, old_obj, new_obj, rec):
+  def insert_in_lisch(self, old_obj, new_obj, rec=None):
     obj_next = None
     if old_obj.index: # if they has a next
       self.point_to_value(old_obj.index)
@@ -86,10 +86,8 @@ class Application(object):
         obj_next = pickle.loads(self.file.read())
       except Exception:
         pass
-
       # call solve colision recursive to the obj_next
-      if self.solve_colision(old_obj=obj_next, new_obj=new_obj, rec=True):
-        return False
+      self.insert_in_lisch(old_obj=obj_next, new_obj=new_obj, rec=True)
     else:
       r_flag_index = self.get_flag_index()
       old_obj.index = r_flag_index
@@ -104,7 +102,30 @@ class Application(object):
       self.close_file()
       return True
 
-  def solve_colision(self, old_obj, new_obj, rec=None):
+  def insert_in_eisch(self, old_obj, new_obj, rec=None):
+    if old_obj.index:
+      # update existing object
+      index_aux = old_obj.index
+      r_flag_index = self.get_flag_index()
+      old_obj.index = r_flag_index
+      self.point_to_value(old_obj.value)
+      self.file.write(pickle.dumps(old_obj))
+      # save the new object
+      self.point_to_value(r_flag_index)
+      new_obj.index = index_aux
+      self.file.write(pickle.dumps(new_obj))
+    else:
+      r_flag_index = self.get_flag_index()
+      old_obj.index = r_flag_index
+      self.point_to_value(old_obj.value)
+      self.file.write(pickle.dumps(old_obj))
+      self.point_to_value(r_flag_index)
+      self.file.write(pickle.dumps(new_obj))
+    self.update_flag()
+    return True
+
+
+  def solve_colision(self, old_obj, new_obj):
     if new_obj.value is old_obj.value:
       print 'chave ja existente: %s' % new_obj.value
       return False
@@ -112,9 +133,9 @@ class Application(object):
     if self.file.closed:
       self.open_file()
     if self.method == 'l':
-      self.insert_in_lisch(old_obj, new_obj, rec)
+      self.insert_in_lisch(old_obj, new_obj)
     else:
-      self.insert_in_eisch(old_obj, new_obj, rec)
+      self.insert_in_eisch(old_obj, new_obj)
 
   def point_to_value(self, value, rec=None):
     """ This method point to index in a file """
@@ -128,7 +149,7 @@ class Application(object):
       obj = None
       try:
         obj = pickle.loads(self.file.read())
-      except:
+      except Exception:
         self.file.seek(index * self.STRUCT_SIZE + len(pickle.dumps(self.SIZE_OF_FILE)))
       if obj and obj.index and (value is not obj.value):
         self.point_to_value(obj.index)
