@@ -69,8 +69,8 @@ class Application(object):
       elif operation is 'm':
         print '%.1f' % self.average()
       elif operation is 'r':
-        # self.remove()
-        self.print_flag()
+        value = raw_input()
+        self.remove(value=value)
       elif operation is 'p':
         self.print_file()
       operation = raw_input()
@@ -78,6 +78,9 @@ class Application(object):
 
   def mod(self, n):
     return n % self.SIZE_OF_FILE
+
+  def is_position_mod(self, value, pos):
+    return True if value % self.SIZE_OF_FILE is pos else False
 
   def tail(self, obj):
     self.file.seek(obj.index * self.STRUCT_SIZE + len(pickle.dumps(self.SIZE_OF_FILE)))
@@ -151,16 +154,16 @@ class Application(object):
     index = self.mod(value)
     self.file.seek(index * self.STRUCT_SIZE + len(pickle.dumps(self.SIZE_OF_FILE)))
 
-    if rec:
-      obj = None
-      try:
-        obj = pickle.loads(self.file.read())
-      except Exception:
-        pass
+    # if rec:
+    #   obj = None
+    #   try:
+    #     obj = pickle.loads(self.file.read())
+    #   except Exception:
+    #     pass
 
-      if obj and obj.index and (value is not obj.value):
-        self.point_to_value(value=obj.index, rec=True)
-      self.file.seek(index * self.STRUCT_SIZE + len(pickle.dumps(self.SIZE_OF_FILE)))
+    #   if hasattr(obj, 'value') and obj.index and (value is not obj.value):
+    #     self.point_to_value(value=obj.index, rec=True)
+    #   self.file.seek(index * self.STRUCT_SIZE + len(pickle.dumps(self.SIZE_OF_FILE)))
 
   def insert_record(self):
     value = raw_input()
@@ -203,22 +206,18 @@ class Application(object):
       return False
 
     # only if it's not called recursive
-    if obj and (obj.value is int(value) and not query_value or int(query_value or -1) is obj.value):
+    if hasattr(obj, 'value') and (obj.value is int(value) and not query_value or int(query_value or -1) is obj.value):
       print 'chave: %s' % obj.value
       print obj.label
       print obj.age
       return True
 
-    if obj and obj.index: # if has colision
+    if hasattr(obj, 'value') and obj.index: # if has colision
       self.point_to_value(obj.index)
       if self.query(value=obj.index, query_value=value if not query_value else query_value):
         return True
 
     self.close_file()
-
-  def remove(self):
-    value = raw_input()
-    pass
 
   def open_file(self):
     self.file = open(self.filename, 'r+b')
@@ -228,7 +227,7 @@ class Application(object):
       self.file.close()
 
   def update_flag(self):
-    if self.file.closed:
+    if not self.file or self.file.closed:
       self.open_file()
 
     self.file.seek(0)
@@ -245,7 +244,7 @@ class Application(object):
         return
 
   def get_flag_index(self):
-    if self.file.closed:
+    if not self.file or self.file.closed:
       self.open_file()
     self.file.seek(0)
     index = pickle.loads(self.file.read())
@@ -286,6 +285,57 @@ class Application(object):
         count += _count_query(obj.value)
     return float(count)/float(recorded)
 
+  def get_current_position(self, value, position=None):
+    self.point_to_value(position or value)
+    try:
+      obj_tmp = pickle.loads(self.file.read())
+    except Exception:
+      pass
+    if value is obj_tmp.value:
+      return position or self.mod(value)
+    if obj_tmp.index:
+      return self.get_current_position(value=value, position=obj_tmp.index)
+    return False
+
+  def remove(self, value, pos=None, next_id=None):
+    if not self.file or self.file.closed:
+      self.open_file()
+
+    value = int(value)
+    obj = None
+    self.point_to_value(next_id or value)
+    try:
+      obj = pickle.loads(self.file.read())
+    except Exception:
+      print 'chave nao encontrada: %s' % value
+
+    if hasattr(obj, 'value'):
+      current_pos = pos or self.get_current_position(value)
+      if value is obj.value:
+        if obj.index:
+          replace_obj = self.search_next(obj=obj, pos=current_pos)
+          if replace_obj:
+            replaced_pos = self.get_current_position(replace_obj.value)
+            self.point_to_value(current_pos)
+            self.file.write(pickle.dumps(replace_obj))
+            self.point_to_value(replaced_pos)
+            self.file.write(pickle.dumps(None))
+            self.update_flag()
+            return True
+        else:
+          pass
+      if obj.index:
+        return self.remove(value=value, pos=current_pos, next_id=obj.index)
+
+  def search_next(self, obj, pos):
+    self.point_to_value(obj.index)
+    obj = pickle.loads(self.file.read())
+    is_mod = self.is_position_mod(value=obj.value, pos=pos)
+    if is_mod:
+      return obj
+    elif obj.index:
+      return self.search_next(obj=obj.index, pos=pos)
+    return False
 
   # ###############################
   # ########## TEMPORARY ##########
