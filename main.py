@@ -87,7 +87,6 @@ class Application(object):
     return obj.index
 
   def insert_in_lisch(self, old_obj, new_obj, index=None):
-    # import pdb; pdb.set_trace()
     obj_next = None
     if old_obj.index: # if they has a next
       self.file.seek(old_obj.index * self.STRUCT_SIZE + len(pickle.dumps(self.SIZE_OF_FILE)))
@@ -161,12 +160,9 @@ class Application(object):
 
       if obj and obj.index and (value is not obj.value):
         self.point_to_value(value=obj.index, rec=True)
-        # maybe the problem is here, because I must pass 9 (where 21 is placed and I passing 10)
       self.file.seek(index * self.STRUCT_SIZE + len(pickle.dumps(self.SIZE_OF_FILE)))
 
   def insert_record(self):
-    # os.path.getsize(self.filename) -> 'full archive'
-
     value = raw_input()
     label = raw_input()
     age = raw_input()
@@ -276,7 +272,6 @@ class Application(object):
         return 1
       return 1 + _count_query(value=value, next_obj=obj.index)
 
-    # init
     self.open_file()
     count = recorded = 0
     for i in range(self.SIZE_OF_FILE):
