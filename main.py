@@ -61,15 +61,17 @@ class Application(object):
     self.set_struct_size()
 
     operation = raw_input()
-    while operation != 'e':
-      if operation == 'i':
+    while operation is not 'e':
+      if operation is 'i':
         self.insert_record()
-      elif operation == 'c':
+      elif operation is 'c':
         self.query()
-      elif operation == 'r':
+      elif operation is 'm':
+        print '%.1f' % self.average()
+      elif operation is 'r':
         # self.remove()
         self.print_flag()
-      elif operation == 'p':
+      elif operation is 'p':
         self.print_file()
       operation = raw_input()
     return
@@ -77,50 +79,55 @@ class Application(object):
   def mod(self, n):
     return n % self.SIZE_OF_FILE
 
-  def insert_in_lisch(self, old_obj, new_obj, rec=None):
+  def tail(self, obj):
+    self.file.seek(obj.index * self.STRUCT_SIZE + len(pickle.dumps(self.SIZE_OF_FILE)))
+    obj_tmp = pickle.loads(self.file.read())
+    if obj_tmp.index:
+      self.tail(obj.index)
+    return obj.index
+
+  def insert_in_lisch(self, old_obj, new_obj, index=None):
+    # import pdb; pdb.set_trace()
     obj_next = None
     if old_obj.index: # if they has a next
-      self.point_to_value(old_obj.index)
+      self.file.seek(old_obj.index * self.STRUCT_SIZE + len(pickle.dumps(self.SIZE_OF_FILE)))
       # get the object in position:obj.index
-      try:
-        obj_next = pickle.loads(self.file.read())
-      except Exception:
-        pass
+      obj_next = pickle.loads(self.file.read())
       # call solve colision recursive to the obj_next
-      self.insert_in_lisch(old_obj=obj_next, new_obj=new_obj, rec=True)
+      self.insert_in_lisch(old_obj=obj_next, new_obj=new_obj, index=old_obj.index)
     else:
       r_flag_index = self.get_flag_index()
+      # insert the new record in last position free
+      self.point_to_value(r_flag_index)
+      self.file.write(pickle.dumps(new_obj))
+      # update the old
+      index = self.mod(new_obj.value) if not index else index
+      self.file.seek(index * self.STRUCT_SIZE + len(pickle.dumps(self.SIZE_OF_FILE)))
       old_obj.index = r_flag_index
-      # pointer to old object value
-      self.point_to_value(old_obj.value, rec=rec)
       # overwrite the old object with the new index
       self.file.write(pickle.dumps(old_obj))
-      # save the new instance in r flag
-      self.point_to_value(r_flag_index)
-      self.file.write(pickle.dumps(new_obj))
-      self.update_flag()
       self.close_file()
+      self.update_flag()
       return True
 
-  def insert_in_eisch(self, old_obj, new_obj, rec=None):
+  def insert_in_eisch(self, old_obj, new_obj, obj_tmp=None):
     if old_obj.index:
-      # update existing object
-      index_aux = old_obj.index
-      r_flag_index = self.get_flag_index()
-      old_obj.index = r_flag_index
-      self.point_to_value(old_obj.value)
-      self.file.write(pickle.dumps(old_obj))
-      # save the new object
-      self.point_to_value(r_flag_index)
-      new_obj.index = index_aux
-      self.file.write(pickle.dumps(new_obj))
+      self.file.seek(old_obj.index * self.STRUCT_SIZE + len(pickle.dumps(self.SIZE_OF_FILE)))
+      obj_next = pickle.loads(self.file.read())
+      self.insert_in_eisch(old_obj=obj_next, new_obj=new_obj, obj_tmp=old_obj if not obj_tmp else obj_tmp)
+      # passing old_obj to not lose the reference
     else:
       r_flag_index = self.get_flag_index()
-      old_obj.index = r_flag_index
-      self.point_to_value(old_obj.value)
-      self.file.write(pickle.dumps(old_obj))
+      if obj_tmp:
+        index_aux = obj_tmp.index
+        new_obj.index = index_aux
+        old_obj = obj_tmp
+
       self.point_to_value(r_flag_index)
       self.file.write(pickle.dumps(new_obj))
+      old_obj.index = r_flag_index
+      self.point_to_value(new_obj.value)
+      self.file.write(pickle.dumps(old_obj))
     self.update_flag()
     return True
 
@@ -150,9 +157,12 @@ class Application(object):
       try:
         obj = pickle.loads(self.file.read())
       except Exception:
-        self.file.seek(index * self.STRUCT_SIZE + len(pickle.dumps(self.SIZE_OF_FILE)))
+        pass
+
       if obj and obj.index and (value is not obj.value):
-        self.point_to_value(obj.index)
+        self.point_to_value(value=obj.index, rec=True)
+        # maybe the problem is here, because I must pass 9 (where 21 is placed and I passing 10)
+      self.file.seek(index * self.STRUCT_SIZE + len(pickle.dumps(self.SIZE_OF_FILE)))
 
   def insert_record(self):
     # os.path.getsize(self.filename) -> 'full archive'
@@ -180,7 +190,7 @@ class Application(object):
     else:
       self.point_to_value(n.value)
       self.file.write(pickle.dumps(n))
-
+      self.update_flag()
     self.close_file()
 
   def query(self, value=None, query_value=None):
@@ -255,6 +265,32 @@ class Application(object):
       except Exception:
         print '%s: vazio' % i
     self.close_file()
+
+
+  def average(self):
+    """ This method calculate the average of a specific value found in file """
+    def _count_query(value, next_obj=None):
+      self.point_to_value(value if not next_obj else next_obj)
+      obj = pickle.loads(self.file.read())
+      if obj.value is value:
+        return 1
+      return 1 + _count_query(value=value, next_obj=obj.index)
+
+    # init
+    self.open_file()
+    count = recorded = 0
+    for i in range(self.SIZE_OF_FILE):
+      obj = None
+      self.point_to_value(i)
+      try:
+        obj = pickle.loads(self.file.read())
+      except Exception:
+        pass
+      if obj:
+        recorded+=1
+        count += _count_query(obj.value)
+    return float(count)/float(recorded)
+
 
   # ###############################
   # ########## TEMPORARY ##########
