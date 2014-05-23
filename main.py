@@ -82,13 +82,6 @@ class Application(object):
   def is_position_mod(self, value, pos):
     return True if value % self.SIZE_OF_FILE is pos else False
 
-  def tail(self, obj):
-    self.file.seek(obj.index * self.STRUCT_SIZE + len(pickle.dumps(self.SIZE_OF_FILE)))
-    obj_tmp = pickle.loads(self.file.read())
-    if obj_tmp.index:
-      self.tail(obj.index)
-    return obj.index
-
   def insert_in_lisch(self, old_obj, new_obj, index=None):
     obj_next = None
     if old_obj.index: # if they has a next
@@ -311,6 +304,7 @@ class Application(object):
 
     if hasattr(obj, 'value'):
       current_pos = pos or self.get_current_position(value)
+      import pdb; pdb.set_trace()
       if value is obj.value:
         if obj.index:
           replace_obj = self.search_next(obj=obj, pos=current_pos)
@@ -337,14 +331,6 @@ class Application(object):
       return self.search_next(obj=obj.index, pos=pos)
     return False
 
-  # ###############################
-  # ########## TEMPORARY ##########
-  # ###############################
-  def print_flag(self):
-    self.open_file()
-    self.file.seek(0)
-    print pickle.loads(self.file.read())
-    self.close_file()
 
 app = Application()
 app.main()
