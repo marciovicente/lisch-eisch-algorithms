@@ -8,9 +8,6 @@
 import sys, struct, os, pickle
 sys.path.insert(0, 'libs/')
 
-# TODO - Change another name to Appliocation class
-# because this must be a node of list, and not an application
-
 class Node(object):
   """ Object class (Node) """
 
@@ -146,17 +143,6 @@ class Application(object):
     value = int(value)
     index = self.mod(value)
     self.file.seek(index * self.STRUCT_SIZE + len(pickle.dumps(self.SIZE_OF_FILE)))
-
-    # if rec:
-    #   obj = None
-    #   try:
-    #     obj = pickle.loads(self.file.read())
-    #   except Exception:
-    #     pass
-
-    #   if hasattr(obj, 'value') and obj.index and (value is not obj.value):
-    #     self.point_to_value(value=obj.index, rec=True)
-    #   self.file.seek(index * self.STRUCT_SIZE + len(pickle.dumps(self.SIZE_OF_FILE)))
 
   def insert_record(self):
     value = raw_input()
@@ -304,7 +290,6 @@ class Application(object):
 
     if hasattr(obj, 'value'):
       current_pos = pos or self.get_current_position(value)
-      import pdb; pdb.set_trace()
       if value is obj.value:
         if obj.index:
           replace_obj = self.search_next(obj=obj, pos=current_pos)
@@ -317,9 +302,28 @@ class Application(object):
             self.update_flag()
             return True
         else:
-          pass
+          pos = self.get_current_position(obj.value)
+          self.point_to_value(pos)
+          self.file.write(pickle.dumps(None))
+          self.update_flag()
+          return
       if obj.index:
         return self.remove(value=value, pos=current_pos, next_id=obj.index)
+      else:
+        self.point_to_value(pos)
+        obj = pickle.loads(self.file.read())
+        is_mod = self.is_position_mod(value=obj.value, pos=pos)
+        if is_mod:
+          self.point_to_value(pos)
+          self.file.write(pickle.dumps(obj))
+          self.point_to_value(next_id)
+          self.file.write(pickle.dumps(None))
+        else:
+          self.point_to_value(pos)
+          self.file.write(pickle.dumps(None))
+        self.update_flag()
+        return
+
 
   def search_next(self, obj, pos):
     self.point_to_value(obj.index)
